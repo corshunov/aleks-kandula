@@ -4,7 +4,13 @@ locals {
 
 sudo apt-get update -y
 
-sudo apt install docker.io -y
+sudo apt install -y apt-transport-https ca-certificates curl 
+sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+sudo apt-get update -y
+sudo apt-get install -y kubectl awscli
+
+sudo apt install -y docker.io
 sudo systemctl start docker
 sudo systemctl enable docker
 sudo usermod -aG docker ubuntu
@@ -24,7 +30,13 @@ USERDATA
 
 sudo apt-get update -y
 
-sudo apt install docker.io git openjdk-8-jdk -y
+sudo apt install -y apt-transport-https ca-certificates curl 
+sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+sudo apt-get update -y
+sudo apt-get install -y kubectl awscli
+
+sudo apt install -y docker.io git openjdk-8-jdk
 sudo systemctl start docker
 sudo systemctl enable docker
 sudo usermod -aG docker ubuntu

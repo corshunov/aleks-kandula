@@ -9,22 +9,6 @@ locals {
   k8s_service_account_name      = "opsschool-sa"
 }
 
-provider "kubernetes" {
-  host                   = data.aws_eks_cluster.eks.endpoint
-  cluster_ca_certificate = base64decode(data.aws_eks_cluster.eks.certificate_authority[0].data)
-  token                  = data.aws_eks_cluster_auth.eks.token
-}
-
-module "iam_assumable_role_admin" {
-  source                        = "terraform-aws-modules/iam/aws//modules/iam-assumable-role-with-oidc"
-  version                       = "~> 4.7.0"
-  create_role                   = true
-  role_name                     = "opsschool-role"
-  provider_url                  = replace(module.eks.cluster_oidc_issuer_url, "https://", "")
-  role_policy_arns              = ["arn:aws:iam::aws:policy/AmazonEC2FullAccess"]
-  oidc_fully_qualified_subjects = ["system:serviceaccount:${local.k8s_service_account_namespace}:${local.k8s_service_account_name}"]
-}
-
 module "eks" {
   source          = "terraform-aws-modules/eks/aws"
   version         = "17.24.0"
@@ -39,30 +23,21 @@ module "eks" {
   worker_groups = [
     {
       name                          = "worker-group-1"
-      instance_type                 = "t2.micro"
-      additional_userdata           = "echo foo bar"
-      asg_desired_capacity          = 2
-      additional_security_group_ids = [aws_security_group.all_worker_mgmt.id]
-    },
-    {
-      name                          = "worker-group-2"
-      instance_type                 = "t2.micro"
-      additional_userdata           = "echo foo bar"
+      instance_type                 = "t3.large"
       asg_desired_capacity          = 2
       additional_security_group_ids = [aws_security_group.all_worker_mgmt.id]
     }
   ]
-}
 
-resource "kubernetes_service_account" "opsschool_sa" {
-  metadata {
-    name      = local.k8s_service_account_name
-    namespace = local.k8s_service_account_namespace
-    annotations = {
-      "eks.amazonaws.com/role-arn" = module.iam_assumable_role_admin.iam_role_arn
+  map_roles = [
+    {
+      rolearn  = var.jenkins_role_arn
+      username = "jenkins"
+      groups   = ["system:masters"]
     }
-  }
-  depends_on = [module.eks]
+  ]
+
+  manage_aws_auth = true
 }
 
 resource "aws_security_group" "all_worker_mgmt" {
@@ -88,4 +63,31 @@ data "aws_eks_cluster" "eks" {
 
 data "aws_eks_cluster_auth" "eks" {
   name = module.eks.cluster_id
+}
+
+provider "kubernetes" {
+  host                   = data.aws_eks_cluster.eks.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.eks.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.eks.token
+}
+
+module "iam_assumable_role_admin" {
+  source                        = "terraform-aws-modules/iam/aws//modules/iam-assumable-role-with-oidc"
+  version                       = "~> 4.7.0"
+  create_role                   = true
+  role_name                     = "opsschool-role"
+  provider_url                  = replace(module.eks.cluster_oidc_issuer_url, "https://", "")
+  role_policy_arns              = ["arn:aws:iam::aws:policy/AmazonEC2FullAccess"]
+  oidc_fully_qualified_subjects = ["system:serviceaccount:${local.k8s_service_account_namespace}:${local.k8s_service_account_name}"]
+}
+
+resource "kubernetes_service_account" "opsschool_sa" {
+  metadata {
+    name      = local.k8s_service_account_name
+    namespace = local.k8s_service_account_namespace
+    annotations = {
+      "eks.amazonaws.com/role-arn" = module.iam_assumable_role_admin.iam_role_arn
+    }
+  }
+  depends_on = [module.eks]
 }

@@ -98,4 +98,5 @@ module "kandula_eks" {
   kubernetes_version        = var.kubernetes_version
   vpc_id                    = module.kandula_vpc.vpc_id
   private_subnet_ids        = module.kandula_vpc.private_subnet_ids
+  jenkins_role_arn          = module.kandula_jenkins.jenkins_role_arn
 }

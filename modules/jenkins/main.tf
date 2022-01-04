@@ -45,6 +45,7 @@ resource "aws_instance" "jenkins_server" {
   subnet_id              = var.private_subnet_ids[0]
   vpc_security_group_ids = [aws_security_group.jenkins_server.id]
   user_data              = local.server_user_data
+  iam_instance_profile   = aws_iam_instance_profile.jenkins.name
 
   tags = {
     Name = "Jenkins Server"
@@ -102,6 +103,7 @@ resource "aws_instance" "jenkins_agents" {
   subnet_id              = var.private_subnet_ids[count.index]
   vpc_security_group_ids = [aws_security_group.jenkins_agent.id]
   user_data              = local.agent_user_data
+  iam_instance_profile   = aws_iam_instance_profile.jenkins.name
 
   tags = {
     Name = "Jenkins Agent ${count.index+1}"
@@ -138,4 +140,25 @@ resource "aws_security_group_rule" "agent_all_egress" {
   to_port     = 0
   cidr_blocks = ["0.0.0.0/0"]
   security_group_id = aws_security_group.jenkins_agent.id
+}
+
+resource "aws_iam_role" "jenkins" {
+  name               = "jenkins"
+  assume_role_policy = file("${path.module}/assume-role.json")
+}
+
+resource "aws_iam_policy" "jenkins" {
+  name        = "jenkins"
+  policy      = file("${path.module}/eks.json")
+}
+
+resource "aws_iam_policy_attachment" "consul" {
+  name       = "jenkins"
+  roles      = [aws_iam_role.jenkins.name]
+  policy_arn = aws_iam_policy.jenkins.arn
+}
+
+resource "aws_iam_instance_profile" "jenkins" {
+  name  = "jenkins"
+  role = aws_iam_role.jenkins.name
 }
